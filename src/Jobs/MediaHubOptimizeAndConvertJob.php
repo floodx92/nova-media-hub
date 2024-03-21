@@ -23,12 +23,10 @@ class MediaHubOptimizeAndConvertJob implements ShouldQueue
 
     protected ?int $mediaId = null;
 
-    private Filesystem $fileSystem;
 
     public function __construct(Media $media)
     {
         $this->mediaId = $media->id;
-        $this->fileSystem = app(Filesystem::class);
         $this->onQueue(MediaHub::getImageConversionsJobQueue());
     }
 
@@ -39,7 +37,9 @@ class MediaHubOptimizeAndConvertJob implements ShouldQueue
             return;
         }
 
-        $localFilePath = $this->fileSystem->copyFromMediaLibrary($media, FileHelpers::getTemporaryFilePath('job-tmp-media-'));
+        $fileSystem = app(Filesystem::class);
+
+        $localFilePath = $fileSystem->copyFromMediaLibrary($media, FileHelpers::getTemporaryFilePath('job-tmp-media-'));
         if (! $localFilePath) {
             return;
         }
@@ -60,9 +60,10 @@ class MediaHubOptimizeAndConvertJob implements ShouldQueue
      */
     private function handleConversions(Media $media, string $localFilePath): void
     {
+        $fileSystem = app(Filesystem::class);
         $conversions = MediaHub::getConversionForMedia($media);
         foreach ($conversions as $conversionName => $conversion) {
-            $copyOfOriginal = $this->fileSystem->makeTemporaryCopy($localFilePath);
+            $copyOfOriginal = $fileSystem->makeTemporaryCopy($localFilePath);
             if ($copyOfOriginal) {
                 MediaOptimizer::makeConversion($media, $copyOfOriginal, $conversionName, $conversion);
                 $this->cleanupFile($copyOfOriginal);
