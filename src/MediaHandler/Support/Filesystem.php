@@ -99,6 +99,10 @@ class Filesystem
         }
 
         $newFilePath = FileHelpers::getTemporaryFilePath('tmp-conversion-copy');
+
+        //add extension
+        $newFilePath .= '.' . pathinfo($localFilePath, PATHINFO_EXTENSION);
+
         if (! copy($localFilePath, $newFilePath)) {
             throw new RuntimeException('Failed to make a temporary copy of the file.');
         }
