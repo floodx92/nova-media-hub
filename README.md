@@ -1,7 +1,9 @@
 # Nova Media Hub
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/outl1ne/nova-media-hub.svg?style=flat-square)](https://packagist.org/packages/outl1ne/nova-media-hub)
-[![Total Downloads](https://img.shields.io/packagist/dt/outl1ne/nova-media-hub.svg?style=flat-square)](https://packagist.org/packages/outl1ne/nova-media-hub)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/floodx92/nova-media-hub.svg?style=flat-square)](https://packagist.org/packages/floodx92/nova-media-hub)
+[![Total Downloads](https://img.shields.io/packagist/dt/floodx92/nova-media-hub.svg?style=flat-square)](https://packagist.org/packages/floodx92/nova-media-hub)
+
+## Compatible with Laravel 11.x and Nova 4.x
 
 This [Laravel Nova](https://nova.laravel.com) package allows you to manage media and media fields.
 
@@ -32,7 +34,7 @@ Install the package in a Laravel Nova project via Composer and run migrations:
 
 ```bash
 # Install nova-media-hub
-composer require outl1ne/nova-media-hub
+composer require floodx92/nova-media-hub
 
 # Run migrations
 php artisan migrate
