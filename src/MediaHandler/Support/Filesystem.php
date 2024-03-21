@@ -69,6 +69,10 @@ class Filesystem
             return null;
         }
 
+        $fullPath = $this->filesystem->disk($media->disk)->path($filePath);
+
+        $targetFilePath .= '.' . pathinfo($fullPath, PATHINFO_EXTENSION);
+
         $stream = $this->filesystem->disk($media->disk)->readStream($filePath);
         file_put_contents($targetFilePath, $stream);
         if (is_resource($stream)) {
