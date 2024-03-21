@@ -4,10 +4,10 @@ namespace Outl1ne\NovaMediaHub\Nova\Fields;
 
 use Exception;
 use Illuminate\Support\Arr;
-use Laravel\Nova\Fields\Field;
 use Illuminate\Support\Collection;
-use Outl1ne\NovaMediaHub\MediaHub;
+use Laravel\Nova\Fields\Field;
 use Laravel\Nova\Http\Requests\NovaRequest;
+use Outl1ne\NovaMediaHub\MediaHub;
 
 class MediaHubField extends Field
 {
@@ -52,7 +52,9 @@ class MediaHubField extends Field
         try {
             if (is_string($value)) {
                 $value = json_decode($value, true);
-                if (is_array($value)) $jsonSerialized['value'] = $value;
+                if (is_array($value)) {
+                    $jsonSerialized['value'] = $value;
+                }
             }
         } catch (Exception $e) {
         }
@@ -66,23 +68,23 @@ class MediaHubField extends Field
         if ($value instanceof Collection) {
             $jsonSerialized['value'] = $value->pluck($keyName)->toArray();
             $jsonSerialized['media'] = $value->keyBy($keyName)->map->formatForNova()->toArray();
-        } else if ($value instanceof $mediaModel) {
+        } elseif ($value instanceof $mediaModel) {
             $jsonSerialized['value'] = $value->{$keyName};
             $jsonSerialized['media'] = $value->formatForNova();
-        } else if (is_array($value)) {
+        } elseif (is_array($value)) {
             $jsonSerialized['media'] = $mediaModel::findMany($value)->keyBy($keyName)->map->formatForNova()->toArray();
-        } else if (!empty($value)) {
+        } elseif (! empty($value)) {
             $jsonSerialized['media'][$value] = $mediaModel::find($value)?->formatForNova();
         }
 
         return $jsonSerialized;
     }
 
-    protected function fillAttributeFromRequest(NovaRequest $request, $requestAttribute, $model, $attribute)
+    protected function fillAttributeFromRequest(NovaRequest $request, $requestAttribute, $model, $attribute): void
     {
         if ($request->exists($requestAttribute)) {
             $value = $request[$requestAttribute];
-            $model->{$attribute} = $this->isNullValue($value) ? null : $value;
+            $model->{$attribute} = $this->isValidNullValue($value) ? null : $value;
         }
     }
 }

@@ -3,21 +3,24 @@
 namespace Outl1ne\NovaMediaHub\Http\Controllers;
 
 use Exception;
-use Illuminate\Support\Arr;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pipeline\Pipeline;
 use Illuminate\Routing\Controller;
-use Outl1ne\NovaMediaHub\MediaHub;
+use Illuminate\Support\Arr;
+use Outl1ne\NovaMediaHub\Filters\Collection;
+use Outl1ne\NovaMediaHub\Filters\Search;
+use Outl1ne\NovaMediaHub\Filters\Sort;
 use Outl1ne\NovaMediaHub\MediaHandler\Support\Filesystem;
+use Outl1ne\NovaMediaHub\MediaHub;
 
 class MediaHubController extends Controller
 {
-    public function getCollections(Request $request)
+    public function getCollections(Request $request): JsonResponse
     {
         $defaultCollections = MediaHub::getDefaultCollections();
 
-        $collections = MediaHub::getMediaModel()
-            ::distinct()
+        $collections = MediaHub::getMediaModel()::distinct()
             ->pluck('collection_name')
             ->merge($defaultCollections)
             ->map(fn ($name) => str($name)->ucfirst())
@@ -28,15 +31,14 @@ class MediaHubController extends Controller
         return response()->json($collections, 200);
     }
 
-    public function getMedia()
+    public function getMedia(): JsonResponse
     {
         $media = app(Pipeline::class)
             ->send(MediaHub::getQuery())->through([
-                \Outl1ne\NovaMediaHub\Filters\Collection::class,
-                \Outl1ne\NovaMediaHub\Filters\Search::class,
-                \Outl1ne\NovaMediaHub\Filters\Sort::class,
+                Collection::class,
+                Search::class,
+                Sort::class,
             ])->thenReturn()->paginate(72);
-
 
         $newCollection = $media->getCollection()->map->formatForNova();
         $media->setCollection($newCollection);
@@ -44,7 +46,7 @@ class MediaHubController extends Controller
         return response()->json($media, 200);
     }
 
-    public function uploadMediaToCollection(Request $request)
+    public function uploadMediaToCollection(Request $request): JsonResponse
     {
         $files = $request->allFiles()['files'] ?? [];
         $collectionName = $request->get('collectionName') ?? 'default';
@@ -72,11 +74,12 @@ class MediaHubController extends Controller
             'success_count' => count($files) - count($exceptions),
         ];
 
-        if (!empty($exceptions)) {
+        if (! empty($exceptions)) {
             return response()->json([
                 ...$coreResponse,
                 'errors' => Arr::map($exceptions, function ($e) {
                     $className = class_basename(get_class($e));
+
                     return "{$className}: {$e->getMessage()}";
                 }),
             ], 400);
@@ -85,24 +88,29 @@ class MediaHubController extends Controller
         return response()->json($coreResponse, 200);
     }
 
-    public function deleteMedia(Request $request)
+    public function deleteMedia(Request $request): JsonResponse
     {
         $mediaId = $request->route('mediaId');
         if ($mediaId && $media = MediaHub::getQuery()->find($mediaId)) {
-            /** @var Filesystem */
+            /** @var Filesystem $fileSystem */
             $fileSystem = app()->make(Filesystem::class);
             $fileSystem->deleteFromMediaLibrary($media);
             $media->delete();
         }
+
         return response()->json('', 204);
     }
 
-    public function moveMediaToCollection(Request $request)
+    public function moveMediaToCollection(Request $request): JsonResponse
     {
         $collectionName = $request->get('collection');
         $mediaIds = $request->get('mediaIds');
-        if (!$collectionName) return response()->json(['error' => 'Collection name required.'], 400);
-        if (count($mediaIds) === 0) return response()->json(['error' => 'Media IDs required.'], 400);
+        if (! $collectionName) {
+            return response()->json(['error' => 'Collection name required.'], 400);
+        }
+        if (count($mediaIds) === 0) {
+            return response()->json(['error' => 'Media IDs required.'], 400);
+        }
 
         $updatedCount = MediaHub::getQuery()
             ->whereIn('id', $mediaIds)
@@ -113,10 +121,12 @@ class MediaHubController extends Controller
         ], 200);
     }
 
-    public function moveMediaItemToCollection(Request $request, $mediaId)
+    public function moveMediaItemToCollection(Request $request, $mediaId): JsonResponse
     {
         $collectionName = $request->get('collection');
-        if (!$collectionName) return response()->json(['error' => 'Collection name required.'], 400);
+        if (! $collectionName) {
+            return response()->json(['error' => 'Collection name required.'], 400);
+        }
 
         $media = MediaHub::getQuery()->findOrFail($mediaId);
 
@@ -126,7 +136,7 @@ class MediaHubController extends Controller
         return response()->json($media, 200);
     }
 
-    public function updateMediaData(Request $request, $mediaId)
+    public function updateMediaData(Request $request, $mediaId): JsonResponse
     {
         $media = MediaHub::getQuery()->findOrFail($mediaId);
         $locales = MediaHub::getLocales();

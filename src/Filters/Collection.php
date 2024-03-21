@@ -5,9 +5,15 @@ namespace Outl1ne\NovaMediaHub\Filters;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Outl1ne\NovaMediaHub\Models\Media;
+use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\NotFoundExceptionInterface;
 
 class Collection
 {
+    /**
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
     public function handle($query, Closure $next)
     {
         if (empty(request()->get('collection'))) {

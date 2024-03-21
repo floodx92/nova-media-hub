@@ -2,88 +2,58 @@
 
 namespace Outl1ne\NovaMediaHub\MediaHandler\Support;
 
-use Exception;
-use Outl1ne\NovaMediaHub\MediaHub;
-use Outl1ne\NovaMediaHub\Models\Media;
 use Illuminate\Contracts\Filesystem\Factory;
 use Outl1ne\NovaMediaHub\Exceptions\FileDoesNotExistException;
+use Outl1ne\NovaMediaHub\MediaHub;
+use Outl1ne\NovaMediaHub\Models\Media;
+use RuntimeException;
 
 class Filesystem
 {
     const TYPE_ORIGINAL = 'original';
+
     const TYPE_CONVERSION = 'conversion';
 
-    /** @var \Illuminate\Contracts\Filesystem\Factory */
-    protected $filesystem;
-
-    public function __construct(Factory $filesystem)
+    public function __construct(protected Factory $filesystem)
     {
-        $this->filesystem = $filesystem;
     }
 
     public function deleteFromMediaLibrary(Media $media)
     {
+        $mainDisk = $this->filesystem->disk($media->disk);
+        $convDisk = $this->filesystem->disk($media->conversions_disk);
+
         // Delete main file
-        $this->filesystem->disk($media->disk)->delete("{$media->path}{$media->file_name}");
+        $mainDisk->delete("{$media->path}{$media->file_name}");
 
         // Delete conversions
-        $conversionsPath = $media->conversionsPath;
         $conversions = $media->conversions ?? [];
-
         foreach ($conversions as $conversionName => $fileName) {
-            $this->filesystem->disk($media->conversions_disk)->delete("{$conversionsPath}/{$fileName}");
+            $convDisk->delete("{$media->conversions_path}/{$fileName}");
         }
 
-        // Check if conversions folder is empty, if so, delete it
-        $convDisk = $this->filesystem->disk($media->conversions_disk);
-        if ($convDisk->exists($conversionsPath)) {
-            $fileCount = count($convDisk->files($conversionsPath));
-            $dirCount = count(array_filter(
-                $convDisk->allDirectories($conversionsPath),
-                fn ($path) => rtrim($path, '/') !== rtrim($conversionsPath, '/')
-            ));
-
-            if ($fileCount === 0 && $dirCount === 0) {
-                $convDisk->deleteDirectory($conversionsPath);
-            }
-        }
-
-        // Check if main media folder is empty, if so, delete it
-        $mainDisk = $this->filesystem->disk($media->disk);
-        if ($mainDisk->exists($media->path)) {
-            $fileCount = count($convDisk->files($media->path));
-            $dirCount = count(array_filter(
-                $convDisk->allDirectories($media->path),
-                fn ($path) => rtrim($path, '/') !== rtrim($media->path, '/')
-            ));
-
-            if ($fileCount === 0 && $dirCount === 0) {
-                $convDisk->deleteDirectory($media->path);
-            }
-        }
+        $this->deleteDirectoryIfEmpty($convDisk, $media->conversions_path);
+        $this->deleteDirectoryIfEmpty($mainDisk, $media->path);
 
         return true;
     }
 
-    public function copyFileToMediaLibrary(string $pathToFile, Media $media, ?string $targetFileName = null, ?string $type = null, $deleteFile = true)
+    private function deleteDirectoryIfEmpty(\Illuminate\Contracts\Filesystem\Filesystem $disk, string $directoryPath): void
     {
-        $forOriginal = $type !== static::TYPE_CONVERSION;
-        $newFileName = $targetFileName ?: pathinfo($pathToFile, PATHINFO_BASENAME);
-        $destination = $this->getMediaDirectory($media, $type) . $newFileName;
+        if (! $disk->allFiles($directoryPath) && ! $disk->allDirectories($directoryPath)) {
+            $disk->deleteDirectory($directoryPath);
+        }
+    }
 
-        $file = fopen($pathToFile, 'r');
+    public function copyFileToMediaLibrary(string $pathToFile, Media $media, ?string $targetFileName = null, ?string $type = null, bool $deleteFile = true): void
+    {
+        $destinationPath = $this->getMediaDirectory($media, $type);
+        $newFileName = $targetFileName ?: basename($pathToFile);
+        $destination = "{$destinationPath}{$newFileName}";
 
-        $diskName = $forOriginal
-            ? $media->disk
-            : $media->conversions_disk;
+        $disk = $this->filesystem->disk($type !== self::TYPE_CONVERSION ? $media->disk : $media->conversions_disk);
+        $disk->put($destination, fopen($pathToFile, 'r'));
 
-        $this->filesystem
-            ->disk($diskName)
-            ->put($destination, $file);
-
-        if (is_resource($file)) fclose($file);
-
-        // Delete old file
         if ($deleteFile && $pathToFile !== $destination) {
             unlink($pathToFile);
         }
@@ -91,46 +61,48 @@ class Filesystem
 
     public function copyFromMediaLibrary(Media $media, string $targetFilePath): ?string
     {
-        $filePath = $this->getMediaDirectory($media) . $media->file_name;
+        $filePath = "{$media->path}{$media->file_name}";
 
-        $exists = $this->filesystem->disk($media->disk)->exists($filePath);
-        if (!$exists) {
-            report(new FileDoesNotExistException("Tried to copy file for media [$media->id] but it did not exist."));
+        if (! $this->filesystem->disk($media->disk)->exists($filePath)) {
+            report(new FileDoesNotExistException("File for media [{$media->id}] does not exist."));
+
             return null;
         }
 
-        $fileStream = $this->filesystem->disk($media->disk)->readStream($filePath);
-        file_put_contents($targetFilePath, $fileStream);
-        if (is_resource($fileStream)) fclose($fileStream);
+        $stream = $this->filesystem->disk($media->disk)->readStream($filePath);
+        file_put_contents($targetFilePath, $stream);
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
+
         return $targetFilePath;
     }
 
     public function getMediaDirectory(Media $media, ?string $type = null): string
     {
-        $forOriginal = $type !== static::TYPE_CONVERSION;
         $pathMaker = MediaHub::getPathMaker();
+        $directory = $type === self::TYPE_CONVERSION ? $pathMaker->getConversionsPath($media) : $pathMaker->getPath($media);
 
-        $directory = $forOriginal
-            ? $pathMaker->getPath($media)
-            : $pathMaker->getConversionsPath($media);
-
-        $diskName = $forOriginal
-            ? $media->disk
-            : $media->conversions_disk;
-
-        $this->filesystem->disk($diskName)->makeDirectory($directory);
+        $disk = $this->filesystem->disk($type === self::TYPE_CONVERSION ? $media->conversions_disk : $media->disk);
+        $disk->makeDirectory($directory);
 
         return $directory;
     }
 
-    public function makeTemporaryCopy($localFilePath)
+    /**
+     * @throws FileDoesNotExistException
+     */
+    public function makeTemporaryCopy(string $localFilePath): string
     {
-        if (!is_file($localFilePath)) throw new FileDoesNotExistException($localFilePath);
-        $newFilePath = FileHelpers::getTemporaryFilePath('tmp-conversion-copy');
-        if (!copy($localFilePath, $newFilePath)) {
-            $err = error_get_last();
-            throw new Exception($err['message'] ?? 'Copy failed due to unknown error.');
+        if (! is_file($localFilePath)) {
+            throw new FileDoesNotExistException("File at {$localFilePath} does not exist.");
         }
+
+        $newFilePath = FileHelpers::getTemporaryFilePath('tmp-conversion-copy');
+        if (! copy($localFilePath, $newFilePath)) {
+            throw new RuntimeException('Failed to make a temporary copy of the file.');
+        }
+
         return $newFilePath;
     }
 }

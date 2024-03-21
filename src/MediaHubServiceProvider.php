@@ -2,13 +2,13 @@
 
 namespace Outl1ne\NovaMediaHub;
 
-use Laravel\Nova\Nova;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Nova\Http\Middleware\Authenticate;
+use Laravel\Nova\Nova;
 use Outl1ne\NovaMediaHub\Http\Middleware\Authorize;
-use Outl1ne\NovaTranslationsLoader\LoadsNovaTranslations;
 use Outl1ne\NovaMediaHub\MediaHandler\Support\Filesystem;
+use Outl1ne\NovaTranslationsLoader\LoadsNovaTranslations;
 
 class MediaHubServiceProvider extends ServiceProvider
 {
@@ -21,18 +21,18 @@ class MediaHubServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
-        $this->loadTranslations(__DIR__ . '/../lang', 'nova-media-hub', true);
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->loadTranslations(__DIR__.'/../lang', 'nova-media-hub', true);
 
         if ($this->app->runningInConsole()) {
             // Publish migrations
             $this->publishes([
-                __DIR__ . '/../database/migrations' => database_path('migrations'),
+                __DIR__.'/../database/migrations' => database_path('migrations'),
             ], 'migrations');
 
             // Publish config
             $this->publishes([
-                __DIR__ . '/../config/' => config_path(),
+                __DIR__.'/../config/' => config_path(),
             ], 'config');
         }
     }
@@ -40,7 +40,7 @@ class MediaHubServiceProvider extends ServiceProvider
     public function register()
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../config/nova-media-hub.php',
+            __DIR__.'/../config/nova-media-hub.php',
             'nova-media-hub'
         );
 
@@ -62,9 +62,11 @@ class MediaHubServiceProvider extends ServiceProvider
                 ->middleware(['nova', Authenticate::class]);
         });
 
-        if ($this->app->routesAreCached()) return;
+        if ($this->app->routesAreCached()) {
+            return;
+        }
 
         Route::middleware(['nova', Authorize::class])
-            ->group(__DIR__ . '/../routes/api.php');
+            ->group(__DIR__.'/../routes/api.php');
     }
 }

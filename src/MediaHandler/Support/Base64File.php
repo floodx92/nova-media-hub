@@ -7,14 +7,8 @@ use Outl1ne\NovaMediaHub\Exceptions\UnknownFileTypeException;
 
 class Base64File
 {
-    protected $base64Data = null;
-    protected $fileName = null;
-    protected $disk = null;
-
-    public function __construct(string $base64Data, string|null $fileName = null)
+    public function __construct(protected string $base64Data, protected ?string $fileName = null)
     {
-        $this->base64Data = $base64Data;
-        $this->fileName = $fileName;
     }
 
     public function getBase64Data(): string
@@ -24,18 +18,25 @@ class Base64File
 
     public function getFilename(): string
     {
-        return $this->fileName ?? microtime();
+        return $this->fileName ?? 'file_'.uniqid();
     }
 
-    public function saveBase64ImageToTemporaryFile()
+    /**
+     * @throws UnknownFileTypeException
+     */
+    public function saveBase64ImageToTemporaryFile(): string
     {
-        $fileData = $this->base64Data;
-        if (Str::contains($fileData, [';', ','])) $fileData = explode(',', $fileData)[1];
+        $fileData = Str::after($this->base64Data, ',');
         [$mimeType, $extension] = FileHelpers::getBase64FileInfo($fileData);
-        if (!$mimeType && !$extension) throw new UnknownFileTypeException('File had no detectable mime-type or extension.');
-        $tmpFilePath = FileHelpers::getTemporaryFilePath('base64-') . ".{$extension}";
+
+        if (! $mimeType || ! $extension) {
+            throw new UnknownFileTypeException('File had no detectable mime-type or extension.');
+        }
+
+        $tmpFilePath = FileHelpers::getTemporaryFilePath('base64-').".$extension";
         file_put_contents($tmpFilePath, base64_decode($fileData));
-        $this->fileName = $this->getFilename() . ".{$extension}";
+        $this->fileName = $this->getFilename().".$extension";
+
         return $tmpFilePath;
     }
 }

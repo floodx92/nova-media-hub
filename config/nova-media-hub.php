@@ -1,5 +1,10 @@
 <?php
 
+use Outl1ne\NovaMediaHub\MediaHandler\Support\FileNamer;
+use Outl1ne\NovaMediaHub\MediaHandler\Support\FileValidator;
+use Outl1ne\NovaMediaHub\MediaHandler\Support\MediaManipulator;
+use Outl1ne\NovaMediaHub\MediaHandler\Support\PathMaker;
+use Outl1ne\NovaMediaHub\Models\Media;
 use Spatie\Image\Manipulations;
 
 return [
@@ -10,13 +15,13 @@ return [
     'base_path' => 'media-hub',
 
     // Classes configuration
-    'model' => \Outl1ne\NovaMediaHub\Models\Media::class,
-    'file_namer' => \Outl1ne\NovaMediaHub\MediaHandler\Support\FileNamer::class,
-    'file_validator' => \Outl1ne\NovaMediaHub\MediaHandler\Support\FileValidator::class,
-    'media_manipulator' =>  \Outl1ne\NovaMediaHub\MediaHandler\Support\MediaManipulator::class,
+    'model' => Media::class,
+    'file_namer' => FileNamer::class,
+    'file_validator' => FileValidator::class,
+    'media_manipulator' => MediaManipulator::class,
 
     // This default PathMaker puts files in a /prefix/<mediaid>/* structure
-    'path_maker' => \Outl1ne\NovaMediaHub\MediaHandler\Support\PathMaker::class,
+    'path_maker' => PathMaker::class,
 
     // If you want files to be in a /prefix/year/month/<mediaid>/* folder structure, use DatePathMaker instead
     // 'path_maker' => \Outl1ne\NovaMediaHub\MediaHandler\Support\DatePathMaker::class,
@@ -102,8 +107,6 @@ return [
         // Set to null if you don't want the original image to be resized
         'max_dimensions' => 2000,
     ],
-
-
 
     // ------------------------------
     // -- Image optimizations

@@ -7,7 +7,7 @@ This [Laravel Nova](https://nova.laravel.com) package allows you to manage media
 
 ## Requirements
 
-- `php: >=8.0`
+- `php: >=8.2`
 - `laravel/nova: ^4.0`
 
 ## Features

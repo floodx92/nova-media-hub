@@ -7,11 +7,13 @@ use Illuminate\Support\Facades\Storage;
 
 class RemoteFile
 {
-    protected $key = null;
-    protected $disk = null;
-    protected $originalFileName = null;
+    protected ?string $key;
 
-    public function __construct(string $key, string|null $disk = null)
+    protected ?string $disk;
+
+    protected ?string $originalFileName = null;
+
+    public function __construct(string $key, ?string $disk = null)
     {
         $this->key = $key;
         $this->disk = $disk;
@@ -22,7 +24,7 @@ class RemoteFile
         return $this->key;
     }
 
-    public function getDisk(): string
+    public function getDisk(): ?string
     {
         return $this->disk;
     }
@@ -35,21 +37,26 @@ class RemoteFile
     public function getName(): string
     {
         return pathinfo($this->getFilename(), PATHINFO_FILENAME);
-        return pathinfo($this->getFilename(), PATHINFO_BASENAME);
     }
 
-    public function downloadFileToCurrentFilesystem()
+    public function downloadFileToCurrentFilesystem(): string
     {
         $tempFilePath = FileHelpers::getTemporaryFilePath();
 
-        if ($this->disk) {
-            Storage::disk('local')->writeStream($tempFilePath, Storage::disk($this->disk)->readStream($this->getKey()));
+        if (! empty($this->disk)) {
+            // Ensure the stream is properly closed
+            $stream = Storage::disk($this->disk)->readStream($this->getKey());
+            if ($stream) {
+                Storage::disk('local')->put($tempFilePath, stream_get_contents($stream));
+                fclose($stream);
+            }
         } else {
+            // Use Http::sink() to directly download the file to the temporary path
             Http::sink($tempFilePath)->get($this->getKey());
         }
 
-        $this->originalFileName = $this->getName();
-        $this->key = $tempFilePath;
+        $this->originalFileName = $this->getFilename(); // Keep the original file name
+        $this->key = $tempFilePath; // Update the key to the temporary file path
 
         return $tempFilePath;
     }

@@ -1,9 +1,9 @@
 <?php
 
-use Outl1ne\NovaMediaHub\MediaHub;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Outl1ne\NovaMediaHub\MediaHub;
 
 return new class extends Migration
 {
@@ -13,7 +13,7 @@ return new class extends Migration
             Schema::table(MediaHub::getTableName(), function (Blueprint $table) {
                 $table->index('collection_name');
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = $e->getMessage();
 
             if (str_contains($msg, 'already exists') || str_contains($msg, 'Duplicate key name')) {
@@ -27,7 +27,7 @@ return new class extends Migration
             Schema::table(MediaHub::getTableName(), function (Blueprint $table) {
                 $table->index('original_file_hash');
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $msg = $e->getMessage();
 
             if (str_contains($msg, 'already exists') || str_contains($msg, 'Duplicate key name')) {

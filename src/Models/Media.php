@@ -2,19 +2,43 @@
 
 namespace Outl1ne\NovaMediaHub\Models;
 
-use Outl1ne\NovaMediaHub\MediaHub;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Outl1ne\NovaMediaHub\MediaHub;
 
+/**
+ * @property int $id
+ * @property string|null $uuid
+ * @property string $collection_name
+ * @property string $disk
+ * @property string $file_name
+ * @property int $size
+ * @property string|null $mime_type
+ * @property string $original_file_hash
+ * @property string|null $conversions_disk
+ * @property array $data
+ * @property array $conversions
+ * @property Carbon|null $optimized_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read string $path
+ * @property-read string $conversions_path
+ * @property-read string $url
+ * @property-read string $thumbnail_url
+ */
 class Media extends Model
 {
-    protected $casts = [
-        'data' => 'array',
-        'conversions' => 'array',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-        'optimized_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'data' => 'array',
+            'conversions' => 'array',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+            'optimized_at' => 'datetime',
+        ];
+    }
 
     protected $appends = ['url', 'thumbnail_url'];
 
@@ -24,45 +48,51 @@ class Media extends Model
         $this->setTable(MediaHub::getTableName());
     }
 
-    public function getPathAttribute()
+    public function getPathAttribute(): string
     {
         $pathMaker = MediaHub::getPathMaker();
+
         return $pathMaker->getPath($this);
     }
 
-    public function getConversionsPathAttribute()
+    public function getConversionsPathAttribute(): string
     {
         $pathMaker = MediaHub::getPathMaker();
+
         return $pathMaker->getConversionsPath($this);
     }
 
-    public function getUrlAttribute()
+    public function getUrlAttribute(): string
     {
-        return Storage::disk($this->disk)->url($this->path . $this->file_name);
+        return Storage::disk($this->disk)->url($this->path.$this->file_name);
     }
 
-    public function getUrl(?string $forConversion = null)
+    public function getUrl(?string $forConversion = null): ?string
     {
-        if (!$forConversion) return $this->url;
+        if (! $forConversion) {
+            return $this->url;
+        }
 
         $conversionName = $this->conversions[$forConversion] ?? null;
-        if (empty($conversionName)) return null;
+        if (empty($conversionName)) {
+            return null;
+        }
 
-        return Storage::disk($this->conversions_disk)->url($this->conversionsPath . $conversionName);
+        return Storage::disk($this->conversions_disk)->url($this->conversions_path.$conversionName);
     }
 
-    public function getThumbnailUrlAttribute()
+    public function getThumbnailUrlAttribute(): ?string
     {
         return $this->getUrl(MediaHub::getThumbnailConversionName());
     }
 
-    public function formatForNova()
+    public function formatForNova(): array
     {
         return [
             'id' => $this->id,
             'collection_name' => $this->collection_name,
             'url' => $this->url,
-            'thumbnail_url' => $this->thumbnailUrl,
+            'thumbnail_url' => $this->thumbnail_url,
             'mime_type' => $this->mime_type,
             'size' => $this->size,
             'file_name' => $this->file_name,

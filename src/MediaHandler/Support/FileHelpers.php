@@ -3,104 +3,74 @@
 namespace Outl1ne\NovaMediaHub\MediaHandler\Support;
 
 use Finfo;
-use Exception;
-use Throwable;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Number;
+use Illuminate\Support\Str;
+use Throwable;
 
 class FileHelpers
 {
-    const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
-
     public static function getHumanReadableSize(int $sizeInBytes): string
     {
-        if ($sizeInBytes == 0) return '0 ' . static::UNITS[1];
-
-        for ($i = 0; $sizeInBytes > 1024; $i++) {
-            $sizeInBytes /= 1024;
-        }
-
-        return round($sizeInBytes, 2) . ' ' . static::UNITS[$i];
+        return Number::fileSize($sizeInBytes);
     }
 
     public static function getMimeType(string $path): string
     {
-        $finfo = new Finfo(FILEINFO_MIME_TYPE);
-        return $finfo->file($path);
+        return (new Finfo(FILEINFO_MIME_TYPE))->file($path) ?? 'application/octet-stream';
     }
 
-    public static function getBase64FileInfo($base64): ?array
+    public static function getBase64FileInfo(string $base64): ?array
     {
         $finfo = new Finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->buffer(base64_decode($base64));
-        if (!Str::startsWith($mimeType, 'image')) return null;
+        if (! Str::startsWith($mimeType, 'image/')) {
+            return null;
+        }
+
         $extension = static::getExtensionFromMimeType($mimeType);
+
         return [$mimeType, $extension];
     }
 
     public static function getExtensionFromMimeType(string $mimeType): ?string
     {
-        if (!Str::startsWith($mimeType, 'image')) return null;
-        return explode('/', $mimeType)[1] ?? null;
+        return Str::after($mimeType, '/') ?: null;
     }
 
-    public static function getFileHash(string $path, string $disk = null): string
+    public static function getFileHash(string $path, ?string $disk = null): ?string
     {
-        if (!$path) return null;
-        if (!$disk && !is_file($path)) return null;
-
-        try {
-            $fileStream = ($disk) ? Storage::disk($disk)->readStream($path) : fopen($path, 'r');
-            $fileHash = md5(fread($fileStream, 1000000));
-            fclose($fileStream);
-        } catch (Exception $e) {
+        if (empty($path)) {
             return null;
         }
 
-        return $fileHash;
-    }
-
-    public static function sanitizeFileName($fileName)
-    {
         try {
-            $reverseFileName = strrev($fileName);
+            $stream = $disk ? Storage::disk($disk)->readStream($path) : fopen($path, 'rb');
+            $ctx = hash_init('md5');
+            hash_update_stream($ctx, $stream);
+            $hash = hash_final($ctx);
+            fclose($stream);
 
-            if (str_contains($fileName, '.')) {
-                [$extension, $name] = explode('.', $reverseFileName, 2);
-            } else {
-                $extension = null;
-                $name = $reverseFileName;
-            }
-
-            if (empty($name)) $name = $extension;
-
-            $sanitizedName = Str::replace(['#', '/', '\\', ' ', '?', '=', '.', '@', '%'], '-', $name);
-
-            if (!empty($extension)) return strrev("{$extension}.{$sanitizedName}");
-            return strrev($sanitizedName);
+            return $hash;
         } catch (Throwable $e) {
-            report($e);
-            return $fileName;
+            return null;
         }
     }
 
-    // Returns [$fileName, $extension]
+    public static function sanitizeFileName(string $fileName): string
+    {
+        $sanitized = Str::slug($fileName, '_');
+
+        return $sanitized ?: $fileName;
+    }
+
     public static function splitNameAndExtension(string $fileName): array
     {
-        $name = pathinfo($fileName, PATHINFO_BASENAME);
-        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
-
-        if (!empty($extension)) {
-            $name = mb_substr($name, 0, - (mb_strlen($extension) + 1));
-        }
-
-        return [$name, $extension];
+        return [pathinfo($fileName, PATHINFO_FILENAME), pathinfo($fileName, PATHINFO_EXTENSION)];
     }
 
-    public static function getTemporaryFilePath($prefix = 'media-')
+    public static function getTemporaryFilePath(string $prefix = 'media-'): string
     {
-        if (!$prefix) $prefix = '';
-        if (!str_ends_with($prefix, '-')) $prefix = "{$prefix}-";
-        return tempnam(sys_get_temp_dir(), "o1-nmh{$prefix}");
+        return tempnam(sys_get_temp_dir(), $prefix) ?: '';
     }
 }

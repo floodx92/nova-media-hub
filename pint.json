@@ -1,0 +1,8 @@
+{
+    "preset": "laravel",
+    "notPath": [
+        ".phpstorm.meta.php",
+        ".ide_helper.php",
+        "vendor"
+    ]
+}

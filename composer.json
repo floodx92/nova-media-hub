@@ -7,12 +7,13 @@
   ],
   "license": "MIT",
   "require": {
-    "php": ">=8.0",
+    "php": ">=8.2",
     "laravel/nova": "^4.0",
     "outl1ne/nova-translations-loader": "^5.0",
-    "outl1ne/nova-translatable": "^2.0.4",
-    "spatie/image": "^2.2",
-    "spatie/image-optimizer": "^1.6"
+    "outl1ne/nova-translatable": "^2.2",
+    "spatie/image": "^3.4",
+    "spatie/image-optimizer": "^1.7",
+    "ext-fileinfo": "*"
   },
   "autoload": {
     "psr-4": {
@@ -37,5 +38,8 @@
       "type": "composer",
       "url": "https://nova.laravel.com"
     }
-  ]
+  ],
+  "require-dev": {
+    "laravel/pint": "^1.14"
+  }
 }

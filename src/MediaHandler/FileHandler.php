@@ -2,138 +2,174 @@
 
 namespace Outl1ne\NovaMediaHub\MediaHandler;
 
-use Outl1ne\NovaMediaHub\MediaHub;
 use Illuminate\Support\Facades\File;
-use Outl1ne\NovaMediaHub\Models\Media;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
-use Outl1ne\NovaMediaHub\MediaHandler\Support\Base64File;
-use Outl1ne\NovaMediaHub\MediaHandler\Support\RemoteFile;
-use Outl1ne\NovaMediaHub\MediaHandler\Support\Filesystem;
-use Outl1ne\NovaMediaHub\MediaHandler\Support\FileHelpers;
-use Outl1ne\NovaMediaHub\Jobs\MediaHubOptimizeAndConvertJob;
-use Outl1ne\NovaMediaHub\Exceptions\NoFileProvidedException;
-use Outl1ne\NovaMediaHub\Exceptions\FileValidationException;
-use Outl1ne\NovaMediaHub\Exceptions\UnknownFileTypeException;
-use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
-use Outl1ne\NovaMediaHub\Exceptions\FileDoesNotExistException;
 use Outl1ne\NovaMediaHub\Exceptions\DiskDoesNotExistException;
+use Outl1ne\NovaMediaHub\Exceptions\FileTooLargeException;
+use Outl1ne\NovaMediaHub\Exceptions\FileValidationException;
+use Outl1ne\NovaMediaHub\Exceptions\MimeTypeNotAllowedException;
+use Outl1ne\NovaMediaHub\Exceptions\NoFileProvidedException;
+use Outl1ne\NovaMediaHub\Exceptions\UnknownFileTypeException;
+use Outl1ne\NovaMediaHub\Jobs\MediaHubOptimizeAndConvertJob;
+use Outl1ne\NovaMediaHub\MediaHandler\Support\Base64File;
+use Outl1ne\NovaMediaHub\MediaHandler\Support\FileHelpers;
+use Outl1ne\NovaMediaHub\MediaHandler\Support\Filesystem;
+use Outl1ne\NovaMediaHub\MediaHandler\Support\RemoteFile;
+use Outl1ne\NovaMediaHub\MediaHub;
+use Outl1ne\NovaMediaHub\Models\Media;
+use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class FileHandler
 {
-    /** @var Filesystem */
-    protected $filesystem;
+    protected Filesystem $filesystem;
 
-    /** @var \Symfony\Component\HttpFoundation\File\UploadedFile|string */
-    protected $file;
+    protected mixed $file;
 
     protected string $fileName = '';
+
     protected string $pathToFile = '';
-    protected string $diskName = '';
-    protected string $conversionsDiskName = '';
+
+    protected ?string $diskName = null;
+
+    protected ?string $conversionsDiskName = null;
+
     protected string $collectionName = '';
+
     protected array $modelData = [];
+
     protected bool $deleteOriginal = false;
 
     public function __construct()
     {
-        $this->filesystem = app()->make(Filesystem::class);
+        $this->filesystem = app(Filesystem::class);
     }
 
-    public static function fromFile($file): self
+    /**
+     * @throws FileValidationException
+     * @throws UnknownFileTypeException
+     */
+    public static function fromFile(mixed $file): self
     {
         return (new static)->withFile($file);
     }
 
-    public function withFile($file): self
+    /**
+     * @throws FileValidationException
+     * @throws UnknownFileTypeException
+     */
+    public function withFile(mixed $file): self
     {
         $this->file = $file;
 
-        if (is_string($file)) {
-            $this->pathToFile = $file;
-            $this->fileName = pathinfo($file, PATHINFO_BASENAME);
-            return $this;
-        }
+        $this->fileName = match (true) {
+            is_string($file) => $this->handleStringFile($file),
+            $file instanceof RemoteFile => $this->handleRemoteFile($file),
+            $file instanceof UploadedFile => $this->handleUploadedFile($file),
+            $file instanceof SymfonyFile, $file instanceof Base64File => $this->handleFileInterface($file),
+            default => throw new UnknownFileTypeException()
+        };
 
-        if ($file instanceof RemoteFile) {
-            $file->downloadFileToCurrentFilesystem();
-            $this->pathToFile = $file->getKey();
-            $this->fileName = $file->getFilename();
-            return $this;
-        }
-
-        if ($file instanceof UploadedFile) {
-            if ($file->getError()) {
-                throw new FileValidationException($file->getErrorMessage());
-            } else {
-                $this->pathToFile = $file->getPath() . '/' . $file->getFilename();
-                $this->fileName = $file->getClientOriginalName();
-                return $this;
-            }
-        }
-
-        if ($file instanceof SymfonyFile) {
-            $this->pathToFile = $file->getPath() . '/' . $file->getFilename();
-            $this->fileName = pathinfo($file->getFilename(), PATHINFO_BASENAME);
-            return $this;
-        }
-
-        if ($file instanceof Base64File) {
-            $filePath = $file->saveBase64ImageToTemporaryFile();
-            $this->pathToFile = $filePath;
-            $this->fileName = pathinfo($file->getFilename(), PATHINFO_BASENAME);
-            return $this;
-        }
-
-        $this->file = null;
-        throw new UnknownFileTypeException();
+        return $this;
     }
 
-    public function deleteOriginal($deleteOriginal = true)
+    private function handleStringFile(string $file): string
+    {
+        $this->pathToFile = $file;
+
+        return pathinfo($file, PATHINFO_BASENAME);
+    }
+
+    private function handleRemoteFile(RemoteFile $file): string
+    {
+        $file->downloadFileToCurrentFilesystem();
+        $this->pathToFile = $file->getKey();
+
+        return $file->getFilename();
+    }
+
+    /**
+     * @throws FileValidationException
+     */
+    private function handleUploadedFile(UploadedFile $file): string
+    {
+        if ($file->getError()) {
+            throw new FileValidationException($file->getErrorMessage());
+        }
+        $this->pathToFile = $file->getPath().'/'.$file->getFilename();
+
+        return $file->getClientOriginalName();
+    }
+
+    private function handleFileInterface($file): string
+    {
+        $this->pathToFile = $file->getPath().'/'.$file->getFilename();
+
+        return pathinfo($file->getFilename(), PATHINFO_BASENAME);
+    }
+
+    public function deleteOriginal(bool $deleteOriginal = true): self
     {
         $this->deleteOriginal = $deleteOriginal;
+
         return $this;
     }
 
-    public function withCollection(string $collectionName)
+    public function withCollection(string $collectionName): self
     {
         $this->collectionName = $collectionName;
+
         return $this;
     }
 
-    public function storeOnDisk($diskName)
+    public function storeOnDisk(?string $diskName): self
     {
         $this->diskName = $diskName;
+
         return $this;
     }
 
-    public function storeConversionOnDisk($diskName)
+    public function storeConversionOnDisk(?string $diskName): self
     {
         $this->conversionsDiskName = $diskName;
+
         return $this;
     }
 
-    public function withModelData(array $modelData)
+    public function withModelData(array $modelData): self
     {
         $this->modelData = $modelData;
+
         return $this;
     }
 
-    public function save($file = null): ?Media
+    /**
+     * @throws FileValidationException
+     * @throws NoFileProvidedException
+     * @throws UnknownFileTypeException
+     * @throws DiskDoesNotExistException
+     */
+    public function save(mixed $file = null): ?Media
     {
-        if (!empty($file)) $this->withFile($file);
-        if (empty($this->file)) throw new NoFileProvidedException();
-        if (!is_file($this->pathToFile)) throw new FileDoesNotExistException($this->pathToFile);
+        if (! empty($file)) {
+            $this->withFile($file);
+        }
+
+        if (empty($this->file) || ! is_file($this->pathToFile)) {
+            throw new NoFileProvidedException();
+        }
 
         try {
             return $this->saveFile();
         } finally {
-            // Ensure cleanup
             if ($this->deleteOriginal && is_file($this->pathToFile)) {
                 unlink($this->pathToFile);
             }
         }
     }
 
+    /**
+     * @throws DiskDoesNotExistException
+     */
     private function saveFile(): ?Media
     {
         // Check if file already exists
@@ -149,7 +185,7 @@ class FileHandler
                 unlink($this->pathToFile);
             }
 
-            if (!$existingMedia->optimized_at) {
+            if (! $existingMedia->optimized_at) {
                 MediaHubOptimizeAndConvertJob::dispatch($existingMedia);
             }
 
@@ -166,7 +202,12 @@ class FileHandler
 
         // Validate file
         $fileValidator = MediaHub::getFileValidator();
-        $fileValidator->validateFile($this->collectionName, $this->pathToFile, $this->fileName, $extension, $mimeType, $fileSize);
+        try {
+            $fileValidator->validateFile($this->collectionName, $this->pathToFile, $this->fileName, $extension, $mimeType, $fileSize);
+        } catch (FileTooLargeException|MimeTypeNotAllowedException $e) {
+            report($e);
+            return null;
+        }
 
         $mediaClass = MediaHub::getMediaModel();
         $media = new $mediaClass($this->modelData ?? []);
@@ -194,7 +235,6 @@ class FileHandler
         return $media;
     }
 
-
     // Helpers
     protected function getDiskName(): string
     {
@@ -206,7 +246,10 @@ class FileHandler
         return $this->conversionsDiskName ?: config('nova-media-hub.conversions_disk_name');
     }
 
-    protected function ensureDiskExists(string $diskName)
+    /**
+     * @throws DiskDoesNotExistException
+     */
+    protected function ensureDiskExists(string $diskName): void
     {
         if (is_null(config("filesystems.disks.{$diskName}"))) {
             throw new DiskDoesNotExistException($diskName);
