@@ -40,6 +40,20 @@ class Media extends Model
         ];
     }
 
+    protected $fillable = [
+        'uuid',
+        'collection_name',
+        'disk',
+        'file_name',
+        'size',
+        'mime_type',
+        'original_file_hash',
+        'conversions_disk',
+        'data',
+        'conversions',
+        'optimized_at',
+    ];
+
     protected $appends = ['url', 'thumbnail_url'];
 
     public function __construct(array $attributes = [])
