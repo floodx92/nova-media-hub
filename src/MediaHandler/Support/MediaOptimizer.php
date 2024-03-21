@@ -29,8 +29,8 @@ class MediaOptimizer
             return;
         }
 
-        self::performOptimization($localFilePath);
         $fileSystem->copyFileToMediaLibrary($localFilePath, $media, $media->file_name, Filesystem::TYPE_ORIGINAL, false);
+        self::performOptimization($localFilePath);
 
         $media->update([
             'mime_type' => FileHelpers::getMimeType($localFilePath),
@@ -57,10 +57,8 @@ class MediaOptimizer
 
         $manipulations = Image::load($localFilePath);
         MediaHub::getMediaManipulator()->manipulateConversion($media, $manipulations, $conversionName, $conversionConfig);
+        $manipulations->optimize(OptimizerChainFactory::create());
         $manipulations->save($localFilePath);
-
-        // Perform optimization on the conversion
-        self::performOptimization($localFilePath);
 
         $conversionFileName = MediaHub::getPathMaker()->getConversionFileName($media, $conversionName);
         $fileSystem->copyFileToMediaLibrary($localFilePath, $media, $conversionFileName, Filesystem::TYPE_CONVERSION, false);
