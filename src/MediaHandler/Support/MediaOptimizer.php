@@ -31,7 +31,7 @@ class MediaOptimizer
 
         $fileSystem->copyFileToMediaLibrary($localFilePath, $media, $media->file_name, Filesystem::TYPE_ORIGINAL, false);
 
-        self::performOptimization($localFilePath);
+        //self::performOptimization($localFilePath);
 
         $media->update([
             'mime_type' => FileHelpers::getMimeType($localFilePath),
