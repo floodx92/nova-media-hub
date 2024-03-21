@@ -38,7 +38,7 @@ class MediaManipulator
 
         $manipulations->fit($cFitMethod, $cWidth, $cHeight);
 
-        if ($cFormat) {
+        if (!empty($cFormat)) {
             $manipulations->format($cFormat);
         }
     }

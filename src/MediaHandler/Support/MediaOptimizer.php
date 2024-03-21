@@ -70,11 +70,11 @@ class MediaOptimizer
 
     private static function getOptimizerChain(): OptimizerChain
     {
-        return tap(new OptimizerChain(), function ($chain) {
+        return once(fn() => tap(new OptimizerChain(), function ($chain) {
             foreach (config('nova-media-hub.image_optimizers') as $class => $constructor) {
                 $chain->addOptimizer(new $class($constructor));
             }
-        });
+        }));
     }
 
     /**
