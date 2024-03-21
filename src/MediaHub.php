@@ -125,8 +125,6 @@ class MediaHub extends Tool
     }
 
     /**
-     * @throws NoFileProvidedException
-     * @throws FileDoesNotExistException
      */
     public static function storeMediaFromBase64($base64String, $fileName, $collectionName, $targetDisk = '', $targetConversionsDisk = ''): Media
     {
@@ -138,6 +136,11 @@ class MediaHub extends Tool
             ->storeConversionOnDisk($targetConversionsDisk)
             ->withCollection($collectionName)
             ->save();
+    }
+
+    public static function fileHandler(): FileHandler
+    {
+        return new FileHandler();
     }
 
     public static function getConversionForMedia(Media $media): array
