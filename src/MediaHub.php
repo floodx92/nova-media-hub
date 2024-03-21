@@ -124,8 +124,6 @@ class MediaHub extends Tool
             ->save();
     }
 
-    /**
-     */
     public static function storeMediaFromBase64($base64String, $fileName, $collectionName, $targetDisk = '', $targetConversionsDisk = ''): Media
     {
         $base64File = new Base64File($base64String, $fileName);

@@ -13,6 +13,7 @@ use Outl1ne\NovaMediaHub\MediaHandler\Support\Filesystem;
 use Outl1ne\NovaMediaHub\MediaHandler\Support\MediaOptimizer;
 use Outl1ne\NovaMediaHub\MediaHub;
 use Outl1ne\NovaMediaHub\Models\Media;
+use Spatie\Image\Exceptions\CouldNotLoadImage;
 
 class MediaHubOptimizeAndConvertJob implements ShouldQueue
 {
@@ -24,10 +25,10 @@ class MediaHubOptimizeAndConvertJob implements ShouldQueue
 
     private Filesystem $fileSystem;
 
-    public function __construct(Media $media, Filesystem $fileSystem)
+    public function __construct(Media $media)
     {
         $this->mediaId = $media->id;
-        $this->fileSystem = $fileSystem;
+        $this->fileSystem = app(Filesystem::class);
         $this->onQueue(MediaHub::getImageConversionsJobQueue());
     }
 
@@ -46,7 +47,7 @@ class MediaHubOptimizeAndConvertJob implements ShouldQueue
         try {
             MediaOptimizer::optimizeOriginalImage($media, $localFilePath);
             $this->handleConversions($media, $localFilePath);
-        } catch (FileDoesNotExistException $e) {
+        } catch (FileDoesNotExistException|CouldNotLoadImage $e) {
             report($e);
         } finally {
             $this->cleanupFile($localFilePath);
@@ -55,6 +56,7 @@ class MediaHubOptimizeAndConvertJob implements ShouldQueue
 
     /**
      * @throws FileDoesNotExistException
+     * @throws CouldNotLoadImage
      */
     private function handleConversions(Media $media, string $localFilePath): void
     {
