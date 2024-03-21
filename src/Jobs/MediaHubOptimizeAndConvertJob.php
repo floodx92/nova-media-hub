@@ -44,6 +44,8 @@ class MediaHubOptimizeAndConvertJob implements ShouldQueue
             return;
         }
 
+        info('Optimizing and converting media', ['media_id' => $media->id, 'file_path' => $localFilePath, 'file_exists' => is_file($localFilePath) ? 'yes' : 'no']);
+
         try {
             MediaOptimizer::optimizeOriginalImage($media, $localFilePath);
             $this->handleConversions($media, $localFilePath);

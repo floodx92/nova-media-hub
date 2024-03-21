@@ -25,11 +25,15 @@ class MediaOptimizer
         $fileSystem = app(Filesystem::class);
         $localFilePath = self::ensureLocalFilePath($media, $localFilePath, $fileSystem);
 
+        info('Optimizing original image', ['media_id' => $media->id, 'file_path' => $localFilePath, 'file_exists' => is_file($localFilePath) ? 'yes' : 'no']);
+
         if (! $localFilePath) {
             return;
         }
 
         $fileSystem->copyFileToMediaLibrary($localFilePath, $media, $media->file_name, Filesystem::TYPE_ORIGINAL, false);
+
+        info('Optimizing original image', ['media_id' => $media->id, 'file_path' => $localFilePath, 'file_exists' => is_file($localFilePath) ? 'yes' : 'no']);
         self::performOptimization($localFilePath);
 
         $media->update([
