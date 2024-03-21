@@ -9,6 +9,8 @@ use Spatie\Image\Exceptions\CouldNotLoadImage;
 use Spatie\Image\Image;
 use Spatie\ImageOptimizer\OptimizerChain;
 
+use Spatie\ImageOptimizer\OptimizerChainFactory;
+
 class MediaOptimizer
 {
     /**
@@ -68,23 +70,12 @@ class MediaOptimizer
         ]);
     }
 
-    private static function getOptimizerChain(): OptimizerChain
-    {
-        return once(fn() => tap(new OptimizerChain(), function ($chain) {
-            foreach (config('nova-media-hub.image_optimizers') as $class => $constructor) {
-                $chain->addOptimizer(new $class($constructor));
-            }
-        }));
-    }
 
-    /**
-     * @throws CouldNotLoadImage
-     */
     private static function performOptimization(string $localFilePath): void
     {
-        Image::load($localFilePath)
-            ->optimize(self::getOptimizerChain())
-            ->save();
+        $optimizerChain = OptimizerChainFactory::create();
+
+        $optimizerChain->optimize($localFilePath);
     }
 
     private static function ensureLocalFilePath(Media $media, ?string $localFilePath, Filesystem $fileSystem): ?string
