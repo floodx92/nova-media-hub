@@ -4,7 +4,6 @@ namespace Outl1ne\NovaMediaHub\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Laravel\Nova\Nova;
 use Laravel\Nova\Tool;
 use Outl1ne\NovaMediaHub\MediaHub;
@@ -14,7 +13,7 @@ class Authorize
     /**
      * Handle the incoming request.
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next)
     {
         $tool = collect(Nova::registeredTools())->first([$this, 'matchesTool']);
 
