@@ -5,7 +5,6 @@ use Outl1ne\NovaMediaHub\MediaHandler\Support\FileValidator;
 use Outl1ne\NovaMediaHub\MediaHandler\Support\MediaManipulator;
 use Outl1ne\NovaMediaHub\MediaHandler\Support\PathMaker;
 use Outl1ne\NovaMediaHub\Models\Media;
-use Spatie\Image\Manipulations;
 
 return [
     // Table name
@@ -92,7 +91,7 @@ return [
                 'format' => null,
                 'width' => 150,
                 'height' => 150,
-                'fit' => Manipulations::FIT_MAX,
+                'fit' => \Spatie\Image\Enums\Fit::Max,
             ],
         ],
     ],
